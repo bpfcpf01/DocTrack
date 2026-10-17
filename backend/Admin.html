@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root{--bg:#f5f6f8;--card:#fff;--ink:#1d2330;--muted:#6b7280;--line:#e3e6eb;--pri:#0f6e56;--pri-ink:#fff;--warn:#b45309;--warn-bg:#fff7ed;--bad:#b91c1c;--ok:#15803d}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Sarabun","Tahoma",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0 12px 0 0}
+  nav button{background:none;border:0;padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit;color:var(--muted)}
+  nav button.on{background:var(--pri);color:var(--pri-ink)}
+  main{padding:16px;max-width:1200px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+  .card h2{font-size:16px;margin:0 0 12px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+  label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+  input,select{font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;min-width:120px;background:#fff}
+  button.b{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer}
+  button.p{background:var(--pri);color:var(--pri-ink);border-color:var(--pri)}
+  button.d{color:var(--bad)}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:12px;color:var(--muted);font-weight:600}
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#eef2f6}
+  .IN_HAND{background:#fef3c7;color:#92400e}.DELIVERED{background:#dcfce7;color:var(--ok)}.VOID{background:#fee2e2;color:var(--bad)}
+  .flag{background:var(--warn-bg);color:var(--warn)}
+  .muted{color:var(--muted)}
+  .thumbs img{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line);margin:2px;cursor:pointer}
+  .setup{background:var(--warn-bg);border-color:#fed7aa}
+  .scroll{overflow-x:auto}
+  #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;display:none;z-index:9}
+  #busy{position:fixed;top:0;left:0;right:0;height:3px;background:var(--pri);display:none}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+  @media print{header,nav,.noprint{display:none!important}.card{border:0}}
+</style>
+</head>
+<body>
+<div id="busy"></div>
+<header>
+  <h1 id="appName">ส่งถึง — Admin</h1>
+  <nav>
+    <button data-tab="records" class="on">รายการ</button>
+    <button data-tab="master">ข้อมูลพื้นฐาน</button>
+    <button data-tab="settings">ตั้งค่า</button>
+    <button data-tab="audit">AuditLog</button>
+  </nav>
+  <span class="muted" id="who" style="margin-left:auto"></span>
+</header>
+<main>
+  <div id="setupBox" class="card setup" hidden></div>
+
+  <!-- รายการ -->
+  <section data-pane="records">
+    <div class="card noprint">
+      <div class="row">
+        <label>จากวันที่<input type="date" id="fFrom"></label>
+        <label>ถึงวันที่<input type="date" id="fTo"></label>
+        <label>หน่วยงาน<select id="fDept"></select></label>
+        <label>พขร.<select id="fDriver"></select></label>
+        <label>สถานะ<select id="fStatus">
+          <option value="">ทั้งหมด</option><option value="IN_HAND">อยู่ในมือ</option>
+          <option value="DELIVERED">ส่งเข้ากล่องแล้ว</option><option value="VOID">ยกเลิก</option></select></label>
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="fFlag" style="min-width:0">เฉพาะที่ติดธง</label>
+        <button class="b p" id="btnSearch">ค้นหา</button>
+        <button class="b" id="btnCsv">ส่งออก CSV</button>
+        <button class="b" onclick="window.print()">พิมพ์</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="muted" id="resInfo"></div>
+      <div class="scroll"><table id="resTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ข้อมูลพื้นฐาน -->
+  <section data-pane="master" hidden>
+    <div class="grid2">
+      <div class="card"><h2>หน่วยงาน</h2>
+        <div class="row"><input id="depName" placeholder="ชื่อหน่วยงาน"><button class="b p" id="depAdd">เพิ่ม</button></div>
+        <table id="depTable"></table></div>
+      <div class="card"><h2>พนักงานขับรถ (พขร.)</h2>
+        <div class="row"><input id="drvName" placeholder="ชื่อ พขร."><input id="drvPin" placeholder="PIN 4–6 หลัก" inputmode="numeric" maxlength="6"><button class="b p" id="drvAdd">เพิ่ม</button></div>
+        <table id="drvTable"></table></div>
+      <div class="card"><h2>อีเมลรับแจ้ง</h2>
+        <div class="row"><input id="recEmail" placeholder="email@…" type="email">
+          <select id="recType"><option value="to">ผู้รับหลัก</option><option value="cc">CC</option></select>
+          <button class="b p" id="recAdd">เพิ่ม</button></div>
+        <table id="recTable"></table></div>
+      <div class="card"><h2>กล่องรับเอกสาร</h2>
+        <div class="row"><input id="boxName" placeholder="ชื่อกล่อง (ตรงกับป้ายที่กล่อง)"><button class="b p" id="boxAdd">เพิ่ม</button></div>
+        <table id="boxTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ตั้งค่า -->
+  <section data-pane="settings" hidden>
+    <div class="card"><h2>ตั้งค่าระบบ</h2>
+      <div class="row">
+        <label>ชื่อระบบ<input id="sName"></label>
+        <label>ติดธงเมื่อเวลาเครื่องห่างจากเซิร์ฟเวอร์เกิน (นาที)<input id="sGap" inputmode="numeric"></label>
+        <label>พขร. ยกเลิกรายการตัวเองได้ภายใน (นาที)<input id="sVoid" inputmode="numeric"></label>
+        <label style="flex:1">ลิงก์แอป พขร. (GitHub Pages)<input id="sUrl" placeholder="https://…"></label>
+        <button class="b p" id="sSave">บันทึก</button>
+      </div>
+      <p class="muted">ฐานข้อมูล: <a id="lnkSheet" target="_blank">Google Sheet</a> · รูปหลักฐาน: <a id="lnkFolder" target="_blank">โฟลเดอร์ Drive</a></p>
+      <p class="muted">หมายเหตุ: หน้านี้แก้เวลา รูป หรือผู้บันทึกของรายการไม่ได้ และลบรายการไม่ได้ ทำได้แค่ยกเลิกพร้อมเหตุผล ทุกการกระทำถูกบันทึกใน AuditLog</p>
+    </div>
+  </section>
+
+  <!-- Audit -->
+  <section data-pane="audit" hidden>
+    <div class="card"><h2>AuditLog (ล่าสุด 300 รายการ)</h2><div class="scroll"><table id="audTable"></table></div></div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+const S = { st: null, rows: [] };
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = iso => iso ? new Date(iso).toLocaleString('th-TH', {timeZone:'Asia/Bangkok', dateStyle:'short', timeStyle:'medium'}) : '';
+const thumb = id => 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w400';
+const view = id => 'https://drive.google.com/file/d/' + encodeURIComponent(id) + '/view';
+const STATUS_TH = {IN_HAND:'อยู่ในมือ', DELIVERED:'ส่งเข้ากล่องแล้ว', VOID:'ยกเลิก', OK:'ปกติ'};
+const FLAG_TH = {TIME_GAP:'เวลาเครื่องห่างจากเซิร์ฟเวอร์', NOT_LIVE_CAMERA:'ไม่ได้ถ่ายผ่านกล้องสด', NO_DEVICE_TIME:'ไม่มีเวลาเครื่อง'};
+const flagTxt = f => String(f || '').split(',').filter(Boolean).map(x => FLAG_TH[x] || x).join(', ');
+
+function run(fn, ...args) {
+  $('#busy').style.display = 'block';
+  return new Promise((ok, bad) => google.script.run
+    .withSuccessHandler(r => { $('#busy').style.display = 'none'; ok(r); })
+    .withFailureHandler(e => { $('#busy').style.display = 'none'; toast(e.message || String(e)); bad(e); })[fn](...args));
+}
+function toast(m) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 3500); }
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== b.dataset.tab);
+  if (b.dataset.tab === 'audit') loadAudit();
+});
+
+function apply(st) {
+  S.st = st;
+  $('#appName').textContent = st.settings.app_name + ' — Admin';
+  $('#who').textContent = st.admin + ' · v' + st.version;
+  const opts = (list, all) => '<option value="">' + all + '</option>' + list.map(x => '<option value="' + esc(x.id) + '">' + esc(x.name) + (x.active ? '' : ' (ปิด)') + '</option>').join('');
+  const keepD = $('#fDept').value, keepV = $('#fDriver').value;
+  $('#fDept').innerHTML = opts(st.departments, 'ทั้งหมด'); $('#fDept').value = keepD;
+  $('#fDriver').innerHTML = opts(st.drivers, 'ทั้งหมด'); $('#fDriver').value = keepV;
+
+  const tog = (kind, x) => '<button class="b" data-kind="' + kind + '" data-id="' + esc(x.id || x.email) + '">' + (x.active ? 'ปิดใช้งาน' : 'เปิดใช้งาน') + '</button>';
+  const ren = (kind, x) => '<button class="b" data-ren="' + kind + '" data-id="' + esc(x.id) + '">แก้ชื่อ</button>';
+  const st_ = x => '<span class="tag ' + (x.active ? 'DELIVERED' : 'VOID') + '">' + (x.active ? 'ใช้งาน' : 'ปิด') + '</span>';
+  $('#depTable').innerHTML = st.departments.map(x => '<tr><td>' + esc(x.name) + '</td><td>' + st_(x) + '</td><td>' + ren('dep', x) + ' ' + tog('dep', x) + '</td></tr>').join('') || '<tr><td class="muted">ยังไม่มี</td></tr>';
+  $('#drvTable').innerHTML = st.drivers.map(x => '<tr><td>' + esc(x.name) + '</td><td>' + st_(x) + '</td><td>' + ren('drv', x) + ' <button class="b" data-pin="' + esc(x.id) + '">รีเซ็ต PIN</button> ' + tog('drv', x) + '</td></tr>').join('') || '<tr><td class="muted">ยังไม่มี</td></tr>';
+  $('#boxTable').innerHTML = st.boxes.map(x => '<tr><td>' + esc(x.name) + '</td><td>' + st_(x) + '</td><td>' + ren('box', x) + ' ' + tog('box', x) + '</td></tr>').join('') || '<tr><td class="muted">ยังไม่มี</td></tr>';
+  $('#recTable').innerHTML = st.recipients.map(x => '<tr><td>' + esc(x.email) + '</td><td>' + (x.type === 'cc' ? 'CC' : 'ผู้รับหลัก') + '</td><td>' + st_(x) + '</td><td>' + tog('rec', x) + '</td></tr>').join('') || '<tr><td class="muted">ยังไม่มี</td></tr>';
+
+  $('#sName').value = st.settings.app_name; $('#sGap').value = st.settings.flag_gap_min;
+  $('#sVoid').value = st.settings.driver_void_window_min; $('#sUrl').value = st.settings.driver_app_url;
+  $('#lnkSheet').href = st.sheet_url; $('#lnkFolder').href = st.folder_url;
+
+  const act = l => l.filter(x => x.active).length;
+  const todo = [];
+  if (!act(st.departments)) todo.push('เพิ่มหน่วยงาน');
+  if (!act(st.drivers)) todo.push('เพิ่ม พขร. พร้อม PIN');
+  if (!act(st.recipients)) todo.push('เพิ่มอีเมลรับแจ้ง (ไม่มี = ไม่ส่งอีเมลหลักฐาน)');
+  if (!act(st.boxes)) todo.push('เพิ่มกล่องรับเอกสาร');
+  if (!st.settings.driver_app_url) todo.push('ใส่ลิงก์แอป พขร. ในหน้าตั้งค่า');
+  $('#setupBox').hidden = !todo.length;
+  $('#setupBox').innerHTML = '<b>ตั้งค่าให้ครบก่อนเริ่มใช้งาน:</b><ol>' + todo.map(t => '<li>' + t + '</li>').join('') + '</ol>' +
+    (st.settings.driver_app_url ? '' : '');
+}
+
+const findIn = (kind, id) => ({dep: S.st.departments, drv: S.st.drivers, box: S.st.boxes, rec: S.st.recipients}[kind]).find(x => (x.id || x.email) === id);
+const SAVE = {dep: 'adminSaveDepartment', drv: 'adminSaveDriver', box: 'adminSaveBox', rec: 'adminSaveRecipient'};
+
+document.addEventListener('click', async e => {
+  const t = e.target;
+  if (t.dataset.kind) {
+    const x = findIn(t.dataset.kind, t.dataset.id);
+    const o = t.dataset.kind === 'rec' ? {email: x.email, type: x.type, active: !x.active} : {id: x.id, name: x.name, active: !x.active};
+    apply(await run(SAVE[t.dataset.kind], o));
+  } else if (t.dataset.ren) {
+    const x = findIn(t.dataset.ren, t.dataset.id);
+    const name = prompt('ชื่อใหม่', x.name);
+    if (name && name.trim() !== x.name) apply(await run(SAVE[t.dataset.ren], {id: x.id, name: name.trim(), active: x.active}));
+  } else if (t.dataset.pin) {
+    const x = findIn('drv', t.dataset.pin);
+    const pin = prompt('PIN ใหม่ของ ' + x.name + ' (ตัวเลข 4–6 หลัก)');
+    if (pin) { apply(await run('adminSaveDriver', {id: x.id, name: x.name, active: x.active, pin: pin})); toast('ตั้ง PIN ใหม่แล้ว — เครื่องที่ล็อกอินอยู่จะต้องเข้าใหม่'); }
+  } else if (t.dataset.void) {
+    const reason = prompt('เหตุผลที่ยกเลิก (บันทึกใน AuditLog)');
+    if (reason) { await run('adminVoid', {type: t.dataset.void, id: t.dataset.id, reason: reason}); toast('ยกเลิกแล้ว'); search(); }
+  } else if (t.dataset.note) {
+    const r = S.rows.find(x => x.id === t.dataset.id);
+    const note = prompt('หมายเหตุ', r ? r.note : '');
+    if (note !== null) { await run('adminAddNote', {type: 'envelope', id: t.dataset.id, note: note}); search(); }
+  } else if (t.dataset.resend) {
+    toast('สถานะอีเมล: ' + await run('adminResendEmail', t.dataset.resend)); search();
+  } else if (t.dataset.img) {
+    window.open(view(t.dataset.img), '_blank');
+  }
+});
+
+$('#depAdd').onclick = async () => { const n = $('#depName').value.trim(); if (!n) return; apply(await run('adminSaveDepartment', {name: n})); $('#depName').value = ''; };
+$('#boxAdd').onclick = async () => { const n = $('#boxName').value.trim(); if (!n) return; apply(await run('adminSaveBox', {name: n})); $('#boxName').value = ''; };
+$('#drvAdd').onclick = async () => { const n = $('#drvName').value.trim(); if (!n) return; apply(await run('adminSaveDriver', {name: n, pin: $('#drvPin').value.trim()})); $('#drvName').value = ''; $('#drvPin').value = ''; };
+$('#recAdd').onclick = async () => { const m = $('#recEmail').value.trim(); if (!m) return; apply(await run('adminSaveRecipient', {email: m, type: $('#recType').value})); $('#recEmail').value = ''; };
+$('#sSave').onclick = async () => { apply(await run('adminSaveSettings', {app_name: $('#sName').value, flag_gap_min: $('#sGap').value, driver_void_window_min: $('#sVoid').value, driver_app_url: $('#sUrl').value})); toast('บันทึกแล้ว'); };
+
+async function search() {
+  const r = await run('adminSearch', {from: $('#fFrom').value, to: $('#fTo').value, dept_id: $('#fDept').value, driver_id: $('#fDriver').value, status: $('#fStatus').value, flagged: $('#fFlag').checked});
+  S.rows = r.rows;
+  $('#resInfo').textContent = 'พบ ' + r.total + ' ซอง' + (r.total > r.limit ? ' (แสดง ' + r.limit + ' รายการล่าสุด — กรองให้แคบลง)' : '');
+  const imgs = ids => '<div class="thumbs">' + ids.map(id => '<img loading="lazy" src="' + thumb(id) + '" data-img="' + esc(id) + '" alt="">').join('') + '</div>';
+  $('#resTable').innerHTML = '<tr><th>รับซอง (เวลาเซิร์ฟเวอร์)</th><th>หน่วยงาน</th><th>พขร.</th><th>รูปซอง</th><th>สถานะ</th><th>ส่งเข้ากล่อง</th><th>รูปในกล่อง</th><th class="noprint"></th></tr>' +
+    r.rows.map(x => {
+      const d = x.delivery;
+      const flags = [x.flag && ('รับซอง: ' + flagTxt(x.flag)), d && d.flag && ('ส่งกล่อง: ' + flagTxt(d.flag))].filter(Boolean);
+      return '<tr><td>' + fmt(x.server_at) + '<div class="muted">' + esc(x.id.slice(0, 8)) + '</div></td>' +
+        '<td>' + esc(x.dept_name) + '<div class="muted">' + (x.sealed ? 'ปิดผนึก' : 'ไม่ปิดผนึก') + '</div></td>' +
+        '<td>' + esc(x.driver_name) + '</td><td>' + imgs(x.photo_ids) + '</td>' +
+        '<td><span class="tag ' + x.status + '">' + STATUS_TH[x.status] + '</span>' +
+          flags.map(f => '<div class="tag flag" style="margin-top:4px">' + esc(f) + '</div>').join('') +
+          (x.void_reason ? '<div class="muted">เหตุผล: ' + esc(x.void_reason) + '</div>' : '') +
+          (x.note ? '<div class="muted">หมายเหตุ: ' + esc(x.note) + '</div>' : '') + '</td>' +
+        '<td>' + (d ? fmt(d.server_at) + '<div class="muted">' + esc(d.box_name) + ' · ' + d.envelope_count + ' ซอง<br>อีเมล: ' + esc(d.email_status) + '</div>' : '-') + '</td>' +
+        '<td>' + (d ? imgs(d.photo_ids) : '') + '</td>' +
+        '<td class="noprint">' +
+          (x.status !== 'VOID' ? '<button class="b d" data-void="envelope" data-id="' + esc(x.id) + '">ยกเลิกซอง</button> ' : '') +
+          (d && d.status !== 'VOID' ? '<button class="b d" data-void="delivery" data-id="' + esc(d.id) + '">ยกเลิกรอบส่ง</button> ' : '') +
+          (d && d.email_status !== 'SENT' ? '<button class="b" data-resend="' + esc(d.id) + '">ส่งอีเมลซ้ำ</button> ' : '') +
+          '<button class="b" data-note="' + esc(x.id) + '">หมายเหตุ</button></td></tr>';
+    }).join('');
+}
+$('#btnSearch').onclick = search;
+
+$('#btnCsv').onclick = () => {
+  if (!S.rows.length) return toast('ค้นหาก่อน');
+  const head = ['envelope_id','received_at_server','captured_at_device','dept','sealed','driver','status','flag','void_reason','note','delivery_id','delivered_at_server','box','email_status','envelope_photos','box_photos'];
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const lines = S.rows.map(x => { const d = x.delivery || {}; return [x.id, fmt(x.server_at), fmt(x.captured_at), x.dept_name, x.sealed ? 'ปิดผนึก' : 'ไม่ปิดผนึก', x.driver_name, STATUS_TH[x.status], [x.flag, d.flag].filter(Boolean).join(' | '), x.void_reason, x.note, d.id, fmt(d.server_at), d.box_name, d.email_status, x.photo_ids.map(view).join(' '), (d.photo_ids || []).map(view).join(' ')].map(q).join(','); });
+  const blob = new Blob(['﻿' + [head.join(',')].concat(lines).join('\n')], {type: 'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'docdrop_' + new Date().toISOString().slice(0, 10) + '.csv'; a.click();
+};
+
+async function loadAudit() {
+  const rows = await run('adminAudit', 300);
+  $('#audTable').innerHTML = '<tr><th>เวลา</th><th>ผู้กระทำ</th><th>การกระทำ</th><th>รายการ</th><th>รายละเอียด</th></tr>' +
+    rows.map(r => '<tr><td>' + fmt(r.ts) + '</td><td>' + esc(r.actor) + '</td><td>' + esc(r.action) + '</td><td>' + esc(r.target) + '</td><td class="muted">' + esc(r.detail) + '</td></tr>').join('');
+}
+
+(async () => {
+  const today = new Date(Date.now() + 7 * 36e5).toISOString().slice(0, 10);
+  $('#fTo').value = today;
+  $('#fFrom').value = new Date(Date.now() + 7 * 36e5 - 7 * 864e5).toISOString().slice(0, 10);
+  apply(await run('adminInit'));
+  search();
+})();
+</script>
+</body>
+</html>
