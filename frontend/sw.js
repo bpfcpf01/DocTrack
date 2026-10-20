@@ -1,5 +1,5 @@
 // แคชหน้าแอปไว้ใช้ตอนไม่มีสัญญาณ — เปลี่ยน VERSION ทุกครั้งที่แก้ไฟล์หน้าเว็บ
-const VERSION = 'docdrop-v1.1.0';
+const VERSION = 'docdrop-v1.1.1';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
