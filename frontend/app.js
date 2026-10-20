@@ -157,7 +157,9 @@ setInterval(() => { if (navigator.onLine && S.queue.length) sync(); }, 60000);
 function renderLogin() {
   const drivers = (S.boot && S.boot.drivers) || [];
   $('#loginDriver').innerHTML = '<option value="">— เลือกชื่อ —</option>' + drivers.map(d => '<option value="' + esc(d.id) + '">' + esc(d.name) + '</option>').join('');
-  $('#loginHint').textContent = drivers.length ? '' : 'ยังโหลดรายชื่อไม่ได้ — ต้องมีสัญญาณอินเทอร์เน็ตในการเข้าสู่ระบบครั้งแรก';
+  $('#loginHint').textContent = drivers.length ? ''
+    : S.boot ? 'ยังไม่มีรายชื่อ พขร. ในระบบ — ติดต่อธุรการ'
+    : 'ยังโหลดรายชื่อไม่ได้ — ต้องมีสัญญาณอินเทอร์เน็ตในการเข้าสู่ระบบครั้งแรก';
   show('scrLogin');
 }
 $('#btnLogin').onclick = async () => {
