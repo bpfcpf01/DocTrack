@@ -9,7 +9,9 @@ const CFG = window.DOCDROP_CONFIG;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12));
+const icon = n => '<svg class="ic" aria-hidden="true"><use href="#i-' + n + '"/></svg>';
 const fmtTime = t => new Date(t).toLocaleString('th-TH', {timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+const fmtClock = t => new Date(t).toLocaleTimeString('th-TH', {timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit'}) + ' น.';
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('dd_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('dd_' + k, JSON.stringify(v)); } catch (e) {} },
@@ -144,7 +146,7 @@ function handList() {
 function renderNet() {
   const on = navigator.onLine;
   $('#net').classList.toggle('off', !on);
-  $('#netTxt').textContent = on ? 'ออนไลน์' : 'ออฟไลน์';
+  $('#netTxt').textContent = on ? 'ออนไลน์' : 'ไม่มีสัญญาณ · ใช้งานได้ปกติ';
 }
 addEventListener('online', () => { renderNet(); sync(); });
 addEventListener('offline', renderNet);
@@ -205,9 +207,9 @@ function renderHome() {
   $('#handCount').textContent = hand.length;
   $('#goDeliver').disabled = !hand.length;
   $('#handList').innerHTML = hand.length ? hand.map(e =>
-    '<li class="' + (e.local ? 'local' : '') + '"><div class="grow"><div>' + esc(e.dept_name) + '</div>' +
+    '<li class="' + (e.local ? 'local' : '') + '"><div class="grow"><div class="name">' + esc(e.dept_name) + '</div>' +
     '<div class="sub">' + fmtTime(e.captured_at) + ' · ' + (e.sealed ? 'ปิดผนึก' : 'ไม่ปิดผนึก') +
-    (e.local ? ' · รอส่งขึ้นระบบ' : '') + '</div></div>' +
+    (e.local ? ' <span class="pill">' + icon('upload') + 'รอส่งขึ้นระบบ</span>' : '') + '</div></div>' +
     (e.can_void ? '<button class="btn small" data-void="' + esc(e.id) + '">ยกเลิก</button>' : '') + '</li>').join('')
     : '<li class="empty">ยังไม่มีซองในมือ</li>';
 }
@@ -227,7 +229,7 @@ document.addEventListener('click', async ev => {
     try { await api('voidEnvelope', {token: S.token, envelope_id: t.dataset.void, reason: reason}); await refreshHand(); renderHome(); toast('ยกเลิกแล้ว'); }
     catch (e) { toast(e.message); }
     finally { busy(false); }
-  } else if (t.hasAttribute('data-back')) {
+  } else if (t.closest('[data-back]')) {
     goHome();
   }
 });
@@ -235,7 +237,9 @@ document.addEventListener('click', async ev => {
 /* ---------- Camera ---------- */
 let stream = null, camResolve = null;
 
-async function takePhoto(label) {
+/* slot = {label, need[]} — need คือสิ่งที่ต้องเห็นในรูป แสดงบนหน้ากล้อง */
+async function takePhoto(slot, count) {
+  const label = slot.label;
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no camera api');
     stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 1920}, height: {ideal: 1440}}, audio: false});
@@ -244,7 +248,9 @@ async function takePhoto(label) {
   }
   const v = $('#camVideo');
   v.srcObject = stream;
-  $('#camLabel').textContent = label;
+  $('#camLabel').innerHTML = '<b>' + esc(label) + (slot.need ? ' · ต้องเห็นในรูป' : '') + '</b>' +
+    (slot.need || []).map((n, i) => '<span class="need-item"><span class="mark m' + i + '"></span>' + esc(n) + '</span>').join('');
+  $('#camCount').textContent = count || '';
   $('#cam').hidden = false;
   return new Promise(ok => { camResolve = ok; });
 }
@@ -300,14 +306,16 @@ function encode(src, w, h, at) {
 
 function renderShots(el, slots, photos, onChange) {
   el.innerHTML = slots.map((s, i) => photos[i]
-    ? '<div class="shot"><img src="' + photos[i].data + '" alt=""><button class="x" data-i="' + i + '" aria-label="ลบรูป">×</button></div>'
-    : '<div class="shot ' + (s.req ? 'req' : '') + '" data-i="' + i + '"><span class="ico">📷</span>' + esc(s.label) + (s.req ? '' : '<span class="hint">(ถ้ามี)</span>') + '</div>').join('');
+    ? '<div class="shot"><img src="' + photos[i].data + '" alt="' + esc(s.label) + '"><button class="x" data-i="' + i + '" aria-label="ลบรูป">' + icon('x') + '</button>' +
+      '<span class="shot-cap">' + icon('check') + esc(s.label) + '</span></div>'
+    : '<button type="button" class="shot ' + (s.req ? 'req' : '') + '" data-i="' + i + '"><span class="ico">' + icon(s.req ? 'camera' : 'plus') + '</span>' +
+      '<span class="shot-label">' + esc(s.label) + '</span><span class="hint">' + (s.req ? 'แตะเพื่อถ่าย' : '(ถ้ามี)') + '</span></button>').join('');
   el.onclick = async ev => {
     const x = ev.target.closest('.x'), shot = ev.target.closest('.shot');
     if (x) { photos.splice(Number(x.dataset.i), 1); return onChange(); }
     if (shot && shot.dataset.i != null && !photos[Number(shot.dataset.i)]) {
       if (Number(shot.dataset.i) !== photos.length) return toast('ถ่ายรูปช่องแรกก่อน');
-      const p = await takePhoto(slots[Number(shot.dataset.i)].label);
+      const p = await takePhoto(slots[Number(shot.dataset.i)], (slots[0].max || slots.length) > 1 ? (photos.length + 1) + ' / ' + (slots[0].max || slots.length) : '');
       if (p) { photos.push(p); onChange(); }
     }
   };
@@ -328,11 +336,14 @@ $('#pkDept').onchange = renderPickup;
 function pkSealed() { return document.querySelector('input[name=pkSealed]:checked').value === '1'; }
 function renderPickup() {
   const sealed = pkSealed();
-  const slots = [{label: 'หน้าซอง (เห็นชื่อหน่วยงาน)', req: true}];
-  if (!sealed) slots.push({label: 'หน้าแรกของเอกสาร', req: true});
+  const slots = [{label: 'หน้าซอง', req: true, need: ['หน้าซอง เห็นชื่อหน่วยงาน']}];
+  if (!sealed) slots.push({label: 'หน้าแรกเอกสาร', req: true, need: ['หน้าแรกของเอกสาร อ่านหัวเรื่องได้']});
   if (S.pk.photos.length > slots.length) S.pk.photos.length = slots.length;
   renderShots($('#pkShots'), slots, S.pk.photos, renderPickup);
-  $('#pkSave').disabled = !$('#pkDept').value || S.pk.photos.length < slots.length;
+  const left = slots.length - S.pk.photos.length;
+  $('#pkSave').disabled = !$('#pkDept').value || left > 0;
+  $('#pkNeed').textContent = !$('#pkDept').value ? 'เลือกหน่วยงานก่อน' + (left > 0 ? ' แล้วถ่ายรูป' : '')
+    : left > 0 ? 'ถ่ายอีก ' + left + ' รูปจึงบันทึกได้' : '';
 }
 $('#pkSave').onclick = async () => {
   const dept = S.boot.departments.find(d => d.id === $('#pkDept').value);
@@ -347,7 +358,7 @@ $('#pkSave').onclick = async () => {
   item.payload.client_id = item.client_id;
   await DB.put(item);
   await loadQueue();
-  done('รับซองแล้ว', dept.name + (navigator.onLine ? '' : ' — บันทึกในเครื่อง จะส่งขึ้นระบบเมื่อมีสัญญาณ'));
+  done('รับซองแล้ว', dept.name + ' · ' + fmtClock(Date.now()));
   sync();
 };
 
@@ -365,13 +376,15 @@ $('#goDeliver').onclick = () => {
 function renderDeliver() {
   const hand = handList();
   $('#dvList').innerHTML = hand.map(e =>
-    '<li data-id="' + esc(e.id) + '"><input type="checkbox" ' + (S.dv.selected.has(e.id) ? 'checked' : '') + '>' +
-    '<div class="grow"><div>' + esc(e.dept_name) + '</div><div class="sub">' + fmtTime(e.captured_at) + (e.local ? ' · รอส่งขึ้นระบบ' : '') + '</div></div></li>').join('');
-  $('#dvSelInfo').textContent = '(เลือก ' + S.dv.selected.size + '/' + hand.length + ' ซอง)';
-  const slots = [{label: 'รูปซองกับป้ายกล่อง', req: true}];
-  for (let i = 1; i < Math.min(CFG.MAX_PHOTOS, S.dv.photos.length + 1); i++) slots.push({label: 'รูปเพิ่มเติม', req: false});
+    '<li data-id="' + esc(e.id) + '" class="' + (e.local ? 'local ' : '') + (S.dv.selected.has(e.id) ? 'on' : '') + '"><input type="checkbox" ' + (S.dv.selected.has(e.id) ? 'checked' : '') + ' aria-label="' + esc(e.dept_name) + '">' +
+    '<div class="grow"><div class="name">' + esc(e.dept_name) + '</div><div class="sub">' + fmtTime(e.captured_at) + (e.local ? ' · รอส่งขึ้นระบบ' : '') + '</div></div></li>').join('');
+  $('#dvSelInfo').textContent = 'เลือก ' + S.dv.selected.size + ' / ' + hand.length + ' ซอง';
+  const need = ['ป้ายกล่องบัญชี', 'หน้าซองทุกซอง'];
+  const slots = [{label: 'รูปที่ 1', req: true, need: need, max: CFG.MAX_PHOTOS}];
+  for (let i = 1; i < Math.min(CFG.MAX_PHOTOS, S.dv.photos.length + 1); i++) slots.push({label: 'รูปที่ ' + (i + 1), req: false, need: need});
   renderShots($('#dvShots'), slots, S.dv.photos, renderDeliver);
   $('#dvSave').disabled = !S.dv.selected.size || !S.dv.photos.length;
+  $('#dvSaveTxt').textContent = S.dv.selected.size ? 'ยืนยันส่ง ' + S.dv.selected.size + ' ซองเข้ากล่อง' : 'เลือกซองอย่างน้อย 1 ซอง';
 }
 $('#dvList').onclick = ev => {
   const li = ev.target.closest('li[data-id]');
@@ -395,14 +408,16 @@ $('#dvSave').onclick = async () => {
   item.payload.client_id = item.client_id;
   await DB.put(item);
   await loadQueue();
-  done('ส่งเข้ากล่องแล้ว', ids.length + ' ซอง' + (navigator.onLine ? ' — ระบบจะส่งอีเมลแจ้งหัวหน้าอัตโนมัติ' : ' — บันทึกในเครื่อง จะส่งขึ้นระบบเมื่อมีสัญญาณ'));
+  done('ส่งเข้ากล่องแล้ว', ids.length + ' ซอง · ' + fmtClock(Date.now()), navigator.onLine ? 'ระบบกำลังส่งขึ้นระบบ และจะอีเมลแจ้งหัวหน้าอัตโนมัติ' : 'ระบบจะส่งขึ้นระบบและอีเมลแจ้งหัวหน้าให้เองเมื่อมีสัญญาณ ไม่ต้องทำซ้ำ');
   sync();
 };
 
 /* ---------- Done ---------- */
-function done(title, text) {
+function done(title, text, wait) {
   $('#doneTitle').textContent = title;
   $('#doneText').textContent = text;
+  $('#doneWait').hidden = navigator.onLine && !wait;
+  $('#doneWait').lastElementChild.textContent = wait || 'ระบบจะส่งขึ้นระบบให้เองเมื่อมีสัญญาณ ไม่ต้องทำซ้ำ';
   show('scrDone');
 }
 $('#doneOk').onclick = goHome;
