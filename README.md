@@ -12,7 +12,7 @@ DocTrack/
 ├── frontend/           → อัปขึ้น GitHub Pages (แอป พขร. แบบ PWA)
 │   ├── index.html  app.js  styles.css  config.js
 │   ├── sw.js  manifest.webmanifest  icon.svg  icon-192.png  icon-512.png
-├── .github/workflows/pages.yml  เผยแพร่ frontend/ ขึ้น GitHub Pages
+├── .github/workflows/pages.yml  คัดลอก frontend/ ไป branch gh-pages (GitHub Pages)
 ├── README.md           ← ไฟล์นี้: วิธีติดตั้ง
 └── HANDOFF.md          สเปกสำหรับ Claude Design / Claude Code
 ```
@@ -36,8 +36,8 @@ DocTrack/
 
 ### 2. Frontend — GitHub Pages
 1. ใส่ URL จากข้อ 5 ใน `frontend/config.js` → `API_URL`
-2. Settings → Pages → Source: **GitHub Actions**
-3. push เข้า `main` → workflow `.github/workflows/pages.yml` จะเผยแพร่โฟลเดอร์ `frontend/` ให้อัตโนมัติ
+2. push เข้า `main` → workflow `.github/workflows/pages.yml` จะคัดลอกโฟลเดอร์ `frontend/` ไปไว้ที่ branch `gh-pages` ให้อัตโนมัติ
+3. Settings → Pages → Source: **Deploy from a branch** · Branch: `gh-pages` / `(root)` (ถ้า GitHub ยังไม่ได้ตั้งให้เอง)
    (แก้ไฟล์หน้าเว็บแล้วอย่าลืมเปลี่ยน `VERSION` ใน `sw.js` ไม่งั้นเครื่อง พขร. จะใช้แคชเก่า)
 4. ได้ลิงก์ `https://<user>.github.io/<repo>/` → ใส่ในหน้า admin › ตั้งค่า › ลิงก์แอป พขร.
 
