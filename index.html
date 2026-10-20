@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B5D46">
+<title>ส่งถึง</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- ไอคอนใช้ซ้ำ (stroke ตามสีตัวอักษร) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+    <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 5.2-2.8"/><path d="M2 8.8a15 15 0 0 1 4.2-2.6"/><path d="m2 2 20 20"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="brand"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg><span id="appName">ส่งถึง</span></div>
+  <div class="net" id="net" role="status"><span class="dot" aria-hidden="true"></span><svg class="ic ic-off" aria-hidden="true"><use href="#i-wifi-off"/></svg><span id="netTxt">ออนไลน์</span></div>
+</header>
+
+<main>
+  <!-- เข้าสู่ระบบ -->
+  <section id="scrLogin" class="screen" hidden>
+    <div class="login-head">
+      <div class="logo" aria-hidden="true"><svg class="ic"><use href="#i-mail"/></svg></div>
+      <h1>เข้าสู่ระบบ</h1>
+      <p class="hint">เลือกชื่อของคุณ แล้วใส่ PIN</p>
+    </div>
+    <label class="field">ชื่อ พขร.<select id="loginDriver"></select></label>
+    <label class="field">PIN 4–6 หลัก<input id="loginPin" class="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off"></label>
+    <button class="btn primary big" id="btnLogin">เข้าสู่ระบบ</button>
+    <p class="hint" id="loginHint"></p>
+    <p class="hint note"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><span>ต้องมีสัญญาณครั้งแรกที่เข้าสู่ระบบ หลังจากนั้นใช้งานได้แม้ไม่มีสัญญาณ · ลืม PIN ติดต่อธุรการ</span></p>
+  </section>
+
+  <!-- หน้าหลัก -->
+  <section id="scrHome" class="screen" hidden>
+    <div class="hello">สวัสดี <b id="meName"></b></div>
+    <div class="actions">
+      <button class="btn primary big action" id="goPickup">
+        <span class="action-ic" aria-hidden="true"><svg class="ic"><use href="#i-plus"/></svg></span>
+        <span class="action-txt"><span class="action-title">รับซองจากหน่วยงาน</span><span class="action-sub">ถ่ายรูปหน้าซองทุกซอง</span></span>
+      </button>
+      <button class="btn accent big action" id="goDeliver">
+        <span class="action-ic" aria-hidden="true"><svg class="ic"><use href="#i-inbox"/></svg></span>
+        <span class="action-txt"><span class="action-title">ส่งเข้ากล่องบัญชี</span><span class="action-sub">ถ่ายรูปกล่อง 1 ครั้งต่อรอบ</span></span>
+        <span class="badge" id="handCount" aria-label="ซองในมือ">0</span>
+      </button>
+    </div>
+
+    <div class="card warn" id="queueCard" hidden>
+      <svg class="ic card-ic" aria-hidden="true"><use href="#i-upload"/></svg>
+      <div class="card-body">
+        <b>รอส่งขึ้นระบบ <span id="queueCount">0</span> รายการ</b>
+        <div class="hint">บันทึกในเครื่องแล้ว ไม่ต้องทำอะไร ระบบจะส่งให้เองเมื่อมีสัญญาณ</div>
+      </div>
+      <button class="btn small" id="btnSync">ส่งตอนนี้</button>
+    </div>
+    <div class="card bad" id="failCard" hidden></div>
+
+    <h2>ซองในมือ</h2>
+    <ul class="list" id="handList"></ul>
+
+    <button class="btn link" id="btnLogout">ออกจากระบบ</button>
+  </section>
+
+  <!-- รับซอง -->
+  <section id="scrPickup" class="screen" hidden>
+    <button class="btn link back" data-back><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg>กลับ</button>
+    <h1 class="pri">รับซองจากหน่วยงาน</h1>
+    <label class="field"><span class="step"><span class="num">1</span>หน่วยงาน</span><select id="pkDept"></select></label>
+    <div class="field"><span class="step"><span class="num">2</span>สภาพซอง</span>
+      <div class="seg">
+        <label><input type="radio" name="pkSealed" value="1" checked><span><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>ปิดผนึก</span></label>
+        <label><input type="radio" name="pkSealed" value="0"><span><svg class="ic" aria-hidden="true"><use href="#i-open"/></svg>ไม่ปิดผนึก</span></label>
+      </div>
+    </div>
+    <div class="field"><span class="step"><span class="num">3</span>ถ่ายรูป</span></div>
+    <div class="shots" id="pkShots"></div>
+    <p class="hint">ซองไม่ปิดผนึก ต้องถ่ายหน้าแรกของเอกสารด้วย · รูปไม่ถูกเก็บในแกลเลอรีของเครื่อง</p>
+    <div class="foot">
+      <button class="btn primary big" id="pkSave" disabled>บันทึก</button>
+      <p class="need" id="pkNeed"></p>
+    </div>
+  </section>
+
+  <!-- ส่งเข้ากล่อง -->
+  <section id="scrDeliver" class="screen" hidden>
+    <button class="btn link back" data-back><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg>กลับ</button>
+    <h1 class="acc">ส่งเข้ากล่องบัญชี</h1>
+    <label class="field" id="dvBoxWrap" hidden>กล่อง<select id="dvBox"></select></label>
+    <div class="field row">ซองที่ใส่กล่องรอบนี้ <span class="hint" id="dvSelInfo"></span></div>
+    <ul class="list check" id="dvList"></ul>
+    <div class="tip"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg><span>วางซองบนหรือข้างกล่อง ให้เห็น <b>ป้ายกล่อง</b> และ <b>หน้าซอง</b> ในรูปเดียวกัน ซองเยอะถ่ายได้ถึง 6 รูป</span></div>
+    <div class="shots three" id="dvShots"></div>
+    <div class="foot">
+      <button class="btn accent big" id="dvSave" disabled><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span id="dvSaveTxt">ยืนยันส่งเข้ากล่อง</span></button>
+    </div>
+  </section>
+
+  <!-- สำเร็จ -->
+  <section id="scrDone" class="screen center" hidden>
+    <div class="check-big" aria-hidden="true"><svg class="ic"><use href="#i-check"/></svg></div>
+    <h1 id="doneTitle">บันทึกแล้ว</h1>
+    <p id="doneText" class="done-sub"></p>
+    <div class="done-card">
+      <span class="ok-line"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>บันทึกในเครื่องแล้ว · รูปและเวลาครบ</span>
+      <span class="wait-line" id="doneWait"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg><span>ระบบจะส่งขึ้นระบบให้เองเมื่อมีสัญญาณ ไม่ต้องทำซ้ำ</span></span>
+    </div>
+    <button class="btn primary big" id="doneOk">กลับหน้าหลัก</button>
+  </section>
+</main>
+
+<!-- กล้อง -->
+<div class="cam" id="cam" hidden>
+  <video id="camVideo" playsinline autoplay muted></video>
+  <div class="cam-label" id="camLabel"></div>
+  <div class="cam-bar">
+    <button class="btn ghost" id="camCancel">ยกเลิก</button>
+    <button class="shutter" id="camShot" aria-label="ถ่ายรูป"></button>
+    <span class="cam-count" id="camCount"></span>
+  </div>
+</div>
+<input type="file" id="fileFallback" accept="image/*" capture="environment" hidden>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="busy" id="busy"><div class="spinner"></div></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
