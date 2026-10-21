@@ -78,7 +78,8 @@
   <section data-pane="master" hidden>
     <div class="grid2">
       <div class="card"><h2>หน่วยงาน</h2>
-        <div class="row"><input id="depName" placeholder="ชื่อหน่วยงาน"><button class="b p" id="depAdd">เพิ่ม</button></div>
+        <div class="row"><input id="depName" placeholder="ชื่อหน่วยงาน"><input id="depEmail" type="email" placeholder="อีเมลหน่วยงาน (ถ้ามี)"><button class="b p" id="depAdd">เพิ่ม</button></div>
+        <p class="muted">ใส่อีเมลหน่วยงาน = ระบบแจ้งหน่วยงานนั้นอัตโนมัติเมื่อซองของเขาถึงกล่อง</p>
         <table id="depTable"></table></div>
       <div class="card"><h2>พนักงานขับรถ (พขร.)</h2>
         <div class="row"><input id="drvName" placeholder="ชื่อ พขร."><input id="drvPin" placeholder="PIN 4–6 หลัก" inputmode="numeric" maxlength="6"><button class="b p" id="drvAdd">เพิ่ม</button></div>
@@ -102,9 +103,12 @@
         <label>ติดธงเมื่อเวลาเครื่องห่างจากเซิร์ฟเวอร์เกิน (นาที)<input id="sGap" inputmode="numeric"></label>
         <label>พขร. ยกเลิกรายการตัวเองได้ภายใน (นาที)<input id="sVoid" inputmode="numeric"></label>
         <label style="flex:1">ลิงก์แอป พขร. (GitHub Pages)<input id="sUrl" placeholder="https://…"></label>
+        <label>ส่งอีเมลสรุปรายวันตอน (0–23 นาฬิกา, ว่าง = ปิด)<input id="sSummary" inputmode="numeric"></label>
+        <label>แจ้งเตือนซองค้างในมือเกิน (ชั่วโมง, 0 = ปิด)<input id="sStale" inputmode="numeric"></label>
         <button class="b p" id="sSave">บันทึก</button>
       </div>
       <p class="muted">ฐานข้อมูล: <a id="lnkSheet" target="_blank">Google Sheet</a> · รูปหลักฐาน: <a id="lnkFolder" target="_blank">โฟลเดอร์ Drive</a></p>
+      <p class="muted">สรุปรายวันและแจ้งซองค้างส่งถึง "อีเมลรับแจ้ง" ทุกคน ระบบเช็กทุกชั่วโมง · MailApp บัญชีฟรีส่งได้ประมาณ 100 ผู้รับต่อวัน</p>
       <p class="muted">หมายเหตุ: หน้านี้แก้เวลา รูป หรือผู้บันทึกของรายการไม่ได้ และลบรายการไม่ได้ ทำได้แค่ยกเลิกพร้อมเหตุผล ทุกการกระทำถูกบันทึกใน AuditLog</p>
     </div>
   </section>
@@ -153,13 +157,14 @@ function apply(st) {
   const tog = (kind, x) => '<button class="b" data-kind="' + kind + '" data-id="' + esc(x.id || x.email) + '">' + (x.active ? 'ปิดใช้งาน' : 'เปิดใช้งาน') + '</button>';
   const ren = (kind, x) => '<button class="b" data-ren="' + kind + '" data-id="' + esc(x.id) + '">แก้ชื่อ</button>';
   const st_ = x => '<span class="tag ' + (x.active ? 'DELIVERED' : 'VOID') + '">' + (x.active ? 'ใช้งาน' : 'ปิด') + '</span>';
-  $('#depTable').innerHTML = st.departments.map(x => '<tr><td>' + esc(x.name) + '</td><td>' + st_(x) + '</td><td>' + ren('dep', x) + ' ' + tog('dep', x) + '</td></tr>').join('') || '<tr><td class="muted">ยังไม่มี</td></tr>';
+  $('#depTable').innerHTML = st.departments.map(x => '<tr><td>' + esc(x.name) + (x.email ? '<div class="muted">' + esc(x.email) + '</div>' : '') + '</td><td>' + st_(x) + '</td><td>' + ren('dep', x) + ' <button class="b" data-depmail="' + esc(x.id) + '">อีเมล</button> ' + tog('dep', x) + '</td></tr>').join('') || '<tr><td class="muted">ยังไม่มี</td></tr>';
   $('#drvTable').innerHTML = st.drivers.map(x => '<tr><td>' + esc(x.name) + '</td><td>' + st_(x) + '</td><td>' + ren('drv', x) + ' <button class="b" data-pin="' + esc(x.id) + '">รีเซ็ต PIN</button> ' + tog('drv', x) + '</td></tr>').join('') || '<tr><td class="muted">ยังไม่มี</td></tr>';
   $('#boxTable').innerHTML = st.boxes.map(x => '<tr><td>' + esc(x.name) + '</td><td>' + st_(x) + '</td><td>' + ren('box', x) + ' ' + tog('box', x) + '</td></tr>').join('') || '<tr><td class="muted">ยังไม่มี</td></tr>';
   $('#recTable').innerHTML = st.recipients.map(x => '<tr><td>' + esc(x.email) + '</td><td>' + (x.type === 'cc' ? 'CC' : 'ผู้รับหลัก') + '</td><td>' + st_(x) + '</td><td>' + tog('rec', x) + '</td></tr>').join('') || '<tr><td class="muted">ยังไม่มี</td></tr>';
 
   $('#sName').value = st.settings.app_name; $('#sGap').value = st.settings.flag_gap_min;
   $('#sVoid').value = st.settings.driver_void_window_min; $('#sUrl').value = st.settings.driver_app_url;
+  $('#sSummary').value = st.settings.daily_summary_hour; $('#sStale').value = st.settings.stale_hours;
   $('#lnkSheet').href = st.sheet_url; $('#lnkFolder').href = st.folder_url;
 
   const act = l => l.filter(x => x.active).length;
@@ -187,6 +192,14 @@ document.addEventListener('click', async e => {
     const x = findIn(t.dataset.ren, t.dataset.id);
     const name = prompt('ชื่อใหม่', x.name);
     if (name && name.trim() !== x.name) apply(await run(SAVE[t.dataset.ren], {id: x.id, name: name.trim(), active: x.active}));
+  } else if (t.dataset.depmail) {
+    const x = findIn('dep', t.dataset.depmail);
+    const email = prompt('อีเมลของ ' + x.name + ' (เว้นว่าง = ไม่แจ้งหน่วยงานนี้)', x.email || '');
+    if (email !== null) apply(await run('adminSaveDepartment', {id: x.id, name: x.name, active: x.active, email: email.trim()}));
+  } else if (t.dataset.pdf) {
+    const url = await run('adminExportPdf', {type: t.dataset.pdf, id: t.dataset.id});
+    toast('สร้าง PDF แล้ว — เก็บในโฟลเดอร์ exports');
+    window.open(url, '_blank');
   } else if (t.dataset.pin) {
     const x = findIn('drv', t.dataset.pin);
     const pin = prompt('PIN ใหม่ของ ' + x.name + ' (ตัวเลข 4–6 หลัก)');
@@ -205,11 +218,11 @@ document.addEventListener('click', async e => {
   }
 });
 
-$('#depAdd').onclick = async () => { const n = $('#depName').value.trim(); if (!n) return; apply(await run('adminSaveDepartment', {name: n})); $('#depName').value = ''; };
+$('#depAdd').onclick = async () => { const n = $('#depName').value.trim(); if (!n) return; apply(await run('adminSaveDepartment', {name: n, email: $('#depEmail').value.trim()})); $('#depName').value = ''; $('#depEmail').value = ''; };
 $('#boxAdd').onclick = async () => { const n = $('#boxName').value.trim(); if (!n) return; apply(await run('adminSaveBox', {name: n})); $('#boxName').value = ''; };
 $('#drvAdd').onclick = async () => { const n = $('#drvName').value.trim(); if (!n) return; apply(await run('adminSaveDriver', {name: n, pin: $('#drvPin').value.trim()})); $('#drvName').value = ''; $('#drvPin').value = ''; };
 $('#recAdd').onclick = async () => { const m = $('#recEmail').value.trim(); if (!m) return; apply(await run('adminSaveRecipient', {email: m, type: $('#recType').value})); $('#recEmail').value = ''; };
-$('#sSave').onclick = async () => { apply(await run('adminSaveSettings', {app_name: $('#sName').value, flag_gap_min: $('#sGap').value, driver_void_window_min: $('#sVoid').value, driver_app_url: $('#sUrl').value})); toast('บันทึกแล้ว'); };
+$('#sSave').onclick = async () => { apply(await run('adminSaveSettings', {app_name: $('#sName').value, flag_gap_min: $('#sGap').value, driver_void_window_min: $('#sVoid').value, driver_app_url: $('#sUrl').value, daily_summary_hour: $('#sSummary').value, stale_hours: $('#sStale').value})); toast('บันทึกแล้ว'); };
 
 async function search() {
   const r = await run('adminSearch', {from: $('#fFrom').value, to: $('#fTo').value, dept_id: $('#fDept').value, driver_id: $('#fDriver').value, status: $('#fStatus').value, flagged: $('#fFlag').checked});
@@ -227,13 +240,14 @@ async function search() {
           flags.map(f => '<div class="tag flag" style="margin-top:4px">' + esc(f) + '</div>').join('') +
           (x.void_reason ? '<div class="muted">เหตุผล: ' + esc(x.void_reason) + '</div>' : '') +
           (x.note ? '<div class="muted">หมายเหตุ: ' + esc(x.note) + '</div>' : '') + '</td>' +
-        '<td>' + (d ? fmt(d.server_at) + '<div class="muted">' + esc(d.box_name) + ' · ' + d.envelope_count + ' ซอง<br>อีเมล: ' + esc(d.email_status) + '</div>' : '-') + '</td>' +
+        '<td>' + (d ? fmt(d.server_at) + '<div class="muted">' + esc(d.box_name) + ' · ' + d.envelope_count + ' ซอง<br>อีเมล: ' + esc(d.email_status) + (d.dept_email_status ? '<br>แจ้งหน่วยงาน: ' + esc(d.dept_email_status) : '') + '</div>' : '-') + '</td>' +
         '<td>' + (d ? imgs(d.photo_ids) : '') + '</td>' +
         '<td class="noprint">' +
           (x.status !== 'VOID' ? '<button class="b d" data-void="envelope" data-id="' + esc(x.id) + '">ยกเลิกซอง</button> ' : '') +
           (d && d.status !== 'VOID' ? '<button class="b d" data-void="delivery" data-id="' + esc(d.id) + '">ยกเลิกรอบส่ง</button> ' : '') +
-          (d && d.email_status !== 'SENT' ? '<button class="b" data-resend="' + esc(d.id) + '">ส่งอีเมลซ้ำ</button> ' : '') +
-          '<button class="b" data-note="' + esc(x.id) + '">หมายเหตุ</button></td></tr>';
+          (d && (d.email_status !== 'SENT' || String(d.dept_email_status || '').indexOf('ERROR') === 0) ? '<button class="b" data-resend="' + esc(d.id) + '">ส่งอีเมลซ้ำ</button> ' : '') +
+          '<button class="b" data-note="' + esc(x.id) + '">หมายเหตุ</button> ' +
+          '<button class="b" data-pdf="envelope" data-id="' + esc(x.id) + '">PDF</button></td></tr>';
     }).join('');
 }
 $('#btnSearch').onclick = search;
