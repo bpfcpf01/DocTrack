@@ -48,10 +48,11 @@ const DEFAULT_SETTINGS = {
 };
 
 /**
- * Google Sheet ที่ใช้เป็นฐานข้อมูล — ว่าง = ให้ setup() สร้างไฟล์ใหม่ให้
- * บัญชีที่รัน Apps Script ต้องมีสิทธิ์แก้ไขชีตนี้
+ * ใช้ Google Sheet ที่มีอยู่แล้วเป็นฐานข้อมูล: ใส่ ID ชีตใน Apps Script editor ก่อนรัน setup() ครั้งแรก
+ * (บัญชีที่รันต้องแก้ไขชีตนั้นได้) ว่าง = setup() สร้างชีตใหม่ให้
+ * setup() จำ ID ไว้ใน Script Property SHEET_ID แล้ว ค่านี้ไม่ถูกอ่านอีก — อย่า commit ID จริงลง repo สาธารณะ
  */
-const PRESET_SHEET_ID = '1ZdlxDI2bNskQr4g3EVW7egjsJNY51D_oSeXYphsY05Q';
+const PRESET_SHEET_ID = '';
 
 const MASTER_PREFIX = { Departments: 'DEP', Drivers: 'DRV', Boxes: 'BOX' };
 const STATUS = { IN_HAND: 'IN_HAND', DELIVERED: 'DELIVERED', VOID: 'VOID', OK: 'OK' };
@@ -501,7 +502,10 @@ function sendDeptEmails_(del, envs, photoIds) {
           '<br><b>เลขรายการ:</b> ' + esc_(del.id) + '</p>' +
           '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse">' +
           '<tr><th>#</th><th>สภาพซอง</th><th>เวลารับซอง</th><th>รหัส</th></tr>' + rows + '</table>' +
-          '<p><b>รูปตอนส่งเข้ากล่อง</b></p>' + photoImgs_(photoIds, inline, 'p') +
+          // รูปกล่องเห็นหน้าซองทุกซองในรอบ → แนบเฉพาะเมื่อทั้งรอบเป็นซองของหน่วยงานนี้ ไม่ให้เห็นซองของหน่วยงานอื่น
+          (g.envs.length === envs.length
+            ? '<p><b>รูปตอนส่งเข้ากล่อง</b></p>' + photoImgs_(photoIds, inline, 'p')
+            : '<p>รอบนี้มีซองของหน่วยงานอื่นอยู่ในรูปด้วย จึงไม่แนบรูป — ขอดูรูปหลักฐานได้ที่ธุรการ (อ้างเลขรายการด้านบน)</p>') +
           '<p style="color:#666;font-size:12px">อีเมลนี้ส่งอัตโนมัติจากระบบ ' + esc_(s.app_name) + ' ไม่ต้องตอบกลับ</p></div>';
         MailApp.sendEmail({
           to: String(g.dep.email).trim(), name: s.app_name, htmlBody: html, inlineImages: inline,
@@ -525,7 +529,8 @@ function hourlyJob() {
   const s = readSettings_();
   const now = new Date();
   const hour = Number(fmt_(now, 'H'));
-  if (s.daily_summary_hour !== '' && Number(s.daily_summary_hour) === hour) {
+  // >= ไม่ใช่ === : trigger รายชั่วโมงเลื่อน/ข้ามชั่วโมงได้ ถ้าพลาดชั่วโมงที่ตั้งไว้ก็ส่งในรอบถัดไปของวันเดียวกัน
+  if (s.daily_summary_hour !== '' && hour >= Number(s.daily_summary_hour)) {
     const today = fmt_(now, 'yyyy-MM-dd');
     if (props_().getProperty('SUMMARY_SENT') !== today) {
       const r = sendDailySummary_(now);
@@ -541,7 +546,7 @@ function sendDailySummary_(now) {
   const day = fmt_(now, 'yyyy-MM-dd');
   const isToday = d => d && fmt_(d, 'yyyy-MM-dd') === day;
   const envs = readAll_('Envelopes');
-  const picked = envs.filter(e => isToday(e.server_at));
+  const picked = envs.filter(e => isToday(e.server_at) && e.status !== STATUS.VOID);
   const dels = readAll_('Deliveries').filter(d => isToday(d.server_at) && d.status !== STATUS.VOID);
   const inHand = envs.filter(e => e.status === STATUS.IN_HAND);
   const flagged = picked.filter(e => e.flag).length + dels.filter(d => d.flag).length;
@@ -574,17 +579,23 @@ function sendDailySummary_(now) {
   try { MailApp.sendEmail(opt); return 'SENT'; } catch (e) { return 'ERROR: ' + e.message; }
 }
 
-/** แจ้งซองที่ค้างในมือเกินกำหนด — แต่ละซองแจ้งครั้งเดียว (จำไว้ใน Script Properties) */
+/**
+ * แจ้งซองที่ค้างในมือเกินกำหนด — แต่ละซองแจ้งครั้งเดียว: แจ้งซองที่ "ข้ามเกณฑ์" (server_at + hours)
+ * ระหว่างรอบตรวจครั้งก่อนกับตอนนี้ เก็บแค่เวลารอบล่าสุด (STALE_CHECKED_AT) ขนาดคงที่ไม่ว่าซองค้างกี่ซอง
+ * ซองที่ค้างนานกว่านั้นยังเห็นได้ในสรุปรายวัน
+ */
 function staleAlert_(now, hours) {
   const limit = hours * 3600000;
-  const stale = readAll_('Envelopes').filter(e => e.status === STATUS.IN_HAND && now - new Date(e.server_at) > limit);
-  let seen = [];
-  try { seen = JSON.parse(props_().getProperty('STALE_ALERTED') || '[]'); } catch (e) { seen = []; }
-  const fresh = stale.filter(e => seen.indexOf(e.id) < 0);
-  const keep = stale.map(e => e.id); // ซองที่ส่งแล้ว/ยกเลิกแล้วหลุดออกจากรายการจำ
-  if (!fresh.length) { props_().setProperty('STALE_ALERTED', JSON.stringify(keep)); return 'NONE'; }
+  const last = Number(props_().getProperty('STALE_CHECKED_AT')) || now.getTime() - 3600000;
+  const fresh = readAll_('Envelopes').filter(e => {
+    if (e.status !== STATUS.IN_HAND) return false;
+    const due = new Date(e.server_at).getTime() + limit;
+    return due > last && due <= now.getTime();
+  });
+  const done = () => props_().setProperty('STALE_CHECKED_AT', String(now.getTime()));
+  if (!fresh.length) { done(); return 'NONE'; }
   const rcp = recipients_();
-  if (!rcp.to) return 'NO_RECIPIENT';
+  if (!rcp.to) { done(); return 'NO_RECIPIENT'; }
   const s = readSettings_();
   const rows = fresh.map(e =>
     '<tr><td>' + esc_(e.driver_name) + '</td><td>' + esc_(e.dept_name) + '</td><td>' + fmt_(e.server_at) +
@@ -594,15 +605,15 @@ function staleAlert_(now, hours) {
     '<p>มีซองอยู่ในมือ พขร. เกิน ' + hours + ' ชั่วโมง ยังไม่ได้บันทึกส่งเข้ากล่อง</p>' +
     '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse">' +
     '<tr><th>พขร.</th><th>หน่วยงาน</th><th>รับซอง</th><th>ค้างมา</th><th>รหัส</th></tr>' + rows + '</table>' +
-    '<p style="color:#666;font-size:12px">อีเมลนี้ส่งอัตโนมัติจากระบบ ' + esc_(s.app_name) + ' · แต่ละซองแจ้งครั้งเดียว</p></div>';
+    '<p style="color:#666;font-size:12px">อีเมลนี้ส่งอัตโนมัติจากระบบ ' + esc_(s.app_name) + ' · แต่ละซองแจ้งครั้งเดียว ซองที่ยังค้างดูได้ในสรุปรายวัน</p></div>';
   const opt = { to: rcp.to, subject: '[' + s.app_name + '] ซองค้างในมือเกิน ' + hours + ' ชม. ' + fresh.length + ' ซอง', htmlBody: html, name: s.app_name };
   if (rcp.cc) opt.cc = rcp.cc;
   try {
     MailApp.sendEmail(opt);
   } catch (e) {
-    return 'ERROR: ' + e.message; // ไม่จำ → รอบหน้าลองใหม่
+    return 'ERROR: ' + e.message; // ไม่เลื่อนเวลารอบ → รอบหน้าลองแจ้งชุดเดิมใหม่
   }
-  props_().setProperty('STALE_ALERTED', JSON.stringify(keep));
+  done();
   audit_('system', 'STALE_ALERT', '', { count: fresh.length, ids: fresh.map(e => e.id) });
   return 'SENT';
 }

@@ -24,8 +24,9 @@ DocTrack/
 2. Project Settings → ติ๊ก *Show "appsscript.json"* แล้ววางเนื้อหา `backend/appsscript.json`
 3. วาง `Code.gs` ทับไฟล์ Code.gs เดิม, สร้างไฟล์ HTML ชื่อ `Admin` แล้ววาง `Admin.html`
 4. เลือกฟังก์ชัน `setup` → Run → อนุญาตสิทธิ์ (Sheets, Drive, Gmail ส่งเมล, ตั้ง trigger)
-   - ฐานข้อมูลใช้ Google Sheet ตาม `PRESET_SHEET_ID` ใน `Code.gs` (ตั้งไว้เป็นชีตของธุรการแล้ว) — บัญชีที่รันต้องแก้ไขชีตนั้นได้
-     ถ้าเว้น `PRESET_SHEET_ID` ว่าง ระบบจะสร้างชีต `ส่งถึง - ฐานข้อมูล` ใหม่ให้
+   - จะใช้ Google Sheet ที่มีอยู่แล้ว: ใส่ ID ชีตใน `PRESET_SHEET_ID` **ใน Apps Script editor เท่านั้น** (อย่า commit ลง repo สาธารณะ)
+     ก่อนรัน `setup` ครั้งแรก — บัญชีที่รันต้องแก้ไขชีตนั้นได้ · เว้นว่าง = ระบบสร้างชีต `ส่งถึง - ฐานข้อมูล` ใหม่ให้
+   - ชีตต้องแชร์แบบ **Restricted** (ห้าม Anyone with the link) — ในชีตมีรายชื่อ พขร. และ AuditLog
    - ระบบเพิ่มแท็บที่ต้องใช้ลงในชีต (แท็บเดิมที่มีข้อมูลไม่ถูกลบ) สร้างโฟลเดอร์ `ส่งถึง - รูปหลักฐาน`
      และตั้ง trigger รายชั่วโมงสำหรับสรุปรายวัน/แจ้งซองค้าง
 5. **Deploy ครั้งที่ 1 (Driver API)**: Deploy → New deployment → Web app
